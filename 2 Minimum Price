@@ -1,103 +1,168 @@
+
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
-public class RestaurantFinder2 {
+class FoodItem {
+    String restaurantId;
+    String[] foodItems; // Assuming food items are stored in an array
+    double price;
+
+    public FoodItem(String restaurantId, String[] foodItems, double price) {
+        this.restaurantId = restaurantId;
+        this.foodItems = foodItems;
+        this.price = price;
+    }
+}
+
+public class MinimumPriceFinder {
 
     public static void main(String[] args) {
-        String filePath = "C:\\Users\\Sahith\\OneDrive\\Documents\\data.csv"; // Correct path
-        System.out.println("Current working directory: " + System.getProperty("user.dir"));
-        System.out.println("Attempting to read from: " + filePath);
+        String filePath = "C:\\Users\\Sahith\\OneDrive\\Documents\\data.csv"; // Update path to your CSV file
+        Scanner scanner = new Scanner(System.in);
 
-        // Check if the file exists
-        File file = new File(filePath);
-        if (!file.exists()) {
-            System.out.println("File does not exist!");
-            return; // Exit if file is not found
-        }
-
-        // Example food items to search (modify this array to test different inputs)
-        String[][] foodItemsToSearch = {
-            {"burger", "tofu_log"}, // Input 1
-            {"chef_salad", "wine_spritzer"}, // Input 2
-            {"extreme_fajita", "jalapeno_poppers", "extra_salsa"} // Input 3
-        };
-
-        // Loop through each set of food items and find the minimum price
-        for (String[] items : foodItemsToSearch) {
-            String result = findMinimumPrice(filePath, items);
-            System.out.println("Input: " + String.join(", ", items) + " -> " + result);
-        }
+        System.out.print("Enter food items separated by spaces: ");
+        String userInput = scanner.nextLine();
+        
+        String result = findMinimumPrice(filePath, userInput);
+        System.out.println(result);
     }
 
-    public static String findMinimumPrice(String filePath, String[] foodItemNames) {
-        // Create a map to store restaurant data
-        Map<Integer, Map<String, Double>> restaurantMap = new HashMap<>();
+    public static String findMinimumPrice(String filePath, String foodItemsInput) {
+        // Load the CSV file into a list of FoodItem objects
+        List<FoodItem> foodItemsList = loadCsv(filePath);
 
-        // Read the data from the CSV file
-        readDataFromFile(filePath, restaurantMap);
+        // Split the input food items into a list
+        String[] foodItems = foodItemsInput.split(" ");
 
-        // Initialize variables to track the minimum price
+        // Initialize variables to track the minimum price and corresponding restaurant ID
         double minPrice = Double.MAX_VALUE;
-        int restaurantId = -1;
+        String bestRestaurantId = null;
 
-        // Loop through each restaurant to find the minimum price for the specified food items
-        for (Map.Entry<Integer, Map<String, Double>> entry : restaurantMap.entrySet()) {
-            int id = entry.getKey();
-            Map<String, Double> foodItems = entry.getValue();
+        // Create a dictionary to track food item prices by restaurant
+        Map<String, List<FoodItem>> restaurantFoodPrices = new HashMap<>();
 
-            // Check if all food items are available in the restaurant
-            boolean allItemsAvailable = true;
-            double totalPrice = 0.0;
+        // Iterate through each FoodItem in the list
+        for (FoodItem foodItem : foodItemsList) {
+            String restaurantId = foodItem.restaurantId;
 
-            for (String foodItem : foodItemNames) {
-                if (foodItems.containsKey(foodItem)) {
-                    totalPrice += foodItems.get(foodItem);
-                } else {
-                    allItemsAvailable = false;
-                    break; // Exit if any item is not available
+            // Initialize if the restaurant is not in the dictionary
+            restaurantFoodPrices.putIfAbsent(restaurantId, new ArrayList<>());
+            restaurantFoodPrices.get(restaurantId).add(foodItem);
+        }
+
+        // Now, check which restaurants have the requested food items
+        for (Map.Entry<String, List<FoodItem>> entry : restaurantFoodPrices.entrySet()) {
+            String restaurantId = entry.getKey();
+            List<FoodItem> items = entry.getValue();
+            List<Double> totalPrices = new ArrayList<>(); // List to hold possible total prices
+
+            // Check for same row prices
+            for (FoodItem item : items) {
+                Set<String> foundItems = new HashSet<>();
+                double rowPrice = 0;
+
+                for (String foodItem : item.foodItems) {
+                    if (Arrays.asList(foodItems).contains(foodItem)) {
+                        foundItems.add(foodItem);
+                        rowPrice += item.price;
+                    }
+                }
+
+                // If all requested food items are found in this row, add to total prices
+                if (foundItems.containsAll(Arrays.asList(foodItems))) {
+                    totalPrices.add(rowPrice);
                 }
             }
 
-            // Update the minimum price if all items are available
-            if (allItemsAvailable && totalPrice < minPrice) {
-                minPrice = totalPrice;
-                restaurantId = id;
+            // Check for different rows prices
+            Map<String, List<FoodItem>> foodItemIndices = new HashMap<>();
+            for (String item : foodItems) {
+                foodItemIndices.put(item, new ArrayList<>());
+            }
+
+            // Populate the indices for each food item
+            for (FoodItem foodItem : items) {
+                for (String item : foodItems) {
+                    if (Arrays.asList(foodItem.foodItems).contains(item)) {
+                        foodItemIndices.get(item).add(foodItem);
+                    }
+                }
+            }
+
+            // Now create combinations of prices
+            if (foodItems.length > 1) {
+                for (List<FoodItem> combination : cartesianProduct(foodItemIndices.values())) {
+                    // Check if the combination is from the same restaurant
+                    Set<String> restaurantIds = new HashSet<>();
+                    double totalPrice = 0;
+
+                    for (FoodItem foodItem : combination) {
+                        restaurantIds.add(foodItem.restaurantId);
+                        totalPrice += foodItem.price;
+                    }
+
+                    if (restaurantIds.size() == 1) { // All items from the same restaurant
+                        totalPrices.add(totalPrice);
+                    }
+                }
+            }
+
+            // Find the minimum price for this restaurant if there are any valid total prices
+            if (!totalPrices.isEmpty()) {
+                double minRestaurantPrice = Collections.min(totalPrices);
+                if (minRestaurantPrice < minPrice) {
+                    minPrice = minRestaurantPrice;
+                    bestRestaurantId = restaurantId;
+                }
             }
         }
 
-        // Return the result
-        if (restaurantId == -1) {
-            return "No matching restaurant found";
+        // Output the result
+        if (bestRestaurantId != null) {
+            return bestRestaurantId + ", " + String.format("%.2f", minPrice);
         } else {
-            return restaurantId + ", " + String.format("%.2f", minPrice);
+            return "No matching restaurant found";
         }
     }
 
-    public static void readDataFromFile(String filePath, Map<Integer, Map<String, Double>> restaurantMap) {
-        String line = null; // Declare line outside the try block
+    private static List<FoodItem> loadCsv(String filePath) {
+        List<FoodItem> foodItems = new ArrayList<>();
+        String line;
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+            br.readLine(); // Skip header line
             while ((line = br.readLine()) != null) {
-                String[] data = line.split(",");
-                if (data.length != 3) {
-                    continue; // Skip invalid lines
-                }
-                int restaurantId = Integer.parseInt(data[0].trim());
-                double price = Double.parseDouble(data[1].trim());
-                String foodItemName = data[2].trim();
-
-                // Add to the restaurant map
-                restaurantMap
-                    .computeIfAbsent(restaurantId, k -> new HashMap<>())
-                    .put(foodItemName, price);
+                String[] values = line.split(","); // Assuming CSV is comma-separated
+                String restaurantId = values[0];
+                double price = Double.parseDouble(values[1].trim()); // Read price from the second column
+                String[] foodItemsArray = Arrays.copyOfRange(values, 2, values.length); // Get food items
+                foodItems.add(new FoodItem(restaurantId, foodItemsArray, price));
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Error reading the CSV file: " + e.getMessage());
         } catch (NumberFormatException e) {
-            System.out.println("Skipping invalid line: " + line); // Now accessible
+            System.err.println("Error parsing a number in the CSV file: " + e.getMessage());
         }
+        return foodItems;
+    }
+
+    private static List<List<FoodItem>> cartesianProduct(Collection<List<FoodItem>> lists) {
+        List<List<FoodItem>> result = new ArrayList<>();
+        result.add(new ArrayList<>()); // Start with an empty list
+
+        for (List<FoodItem> list : lists) {
+            List<List<FoodItem>> newResult = new ArrayList<>();
+            for (List<FoodItem> current : result) {
+                for (FoodItem item : list) {
+                    List<FoodItem> newCombination = new ArrayList<>(current);
+                    newCombination.add(item);
+                    newResult.add(newCombination);
+                }
+            }
+            result = newResult;
+        }
+
+        return result;
     }
 }
