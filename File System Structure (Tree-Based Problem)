@@ -1,115 +1,153 @@
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Scanner;
 
-public class FileSystem {
-    // The filesystem representation
-    static Map<String, Object> filesystem = new HashMap<>();
-
-    static {
-        filesystem.put("root", new HashMap<String, Object>() {{
-            put("dir1", new HashMap<String, Object>() {{
-                put("subdir1", new HashMap<String, Object>() {{
-                    put("file1.txt", 100);
-                    put("file2.txt", 200);
-                    put("subsubdir1", new HashMap<String, Object>() {{
-                        put("file3.txt", 50);
-                        put("file4.txt", 150);
-                        put("subsubsubdir1", new HashMap<String, Object>() {{
-                            put("file5.txt", 500);
-                            put("emptydir1", new HashMap<String, Object>());
-                        }});
-                    }});
-                }});
-                put("subdir2", new HashMap<String, Object>() {{
-                    put("file6.txt", 300);
-                    put("subsubdir2", new HashMap<String, Object>() {{
-                        put("file7.txt", 700);
-                        put("subsubsubdir2", new HashMap<String, Object>() {{
-                            put("file8.txt", 800);
-                            put("file9.txt", 900);
-                        }});
-                    }});
-                    put("emptydir2", new HashMap<String, Object>());
-                }});
-                put("file10.txt", 1000);
-            }});
-            put("dir2", new HashMap<String, Object>() {{
-                put("subdir3", new HashMap<String, Object>() {{
-                    put("subsubdir3", new HashMap<String, Object>() {{
-                        put("file11.txt", 400);
-                        put("file12.txt", 500);
-                    }});
-                    put("subsubdir4", new HashMap<String, Object>() {{
-                        put("emptydir3", new HashMap<String, Object>());
-                    }});
-                }});
-                put("subdir4", new HashMap<String, Object>() {{
-                    put("file13.txt", 600);
-                    put("subsubdir5", new HashMap<String, Object>() {{
-                        put("file14.txt", 700);
-                        put("file15.txt", 800);
-                        put("subsubsubdir3", new HashMap<String, Object>() {{
-                            put("emptydir4", new HashMap<String, Object>());
-                            put("file16.txt", 900);
-                            put("file17.txt", 1000);
-                        }});
-                    }});
-                }});
-                put("emptydir5", new HashMap<String, Object>());
-            }});
-            put("dir3", new HashMap<String, Object>() {{
-                put("file18.txt", 1100);
-                put("subdir5", new HashMap<String, Object>() {{
-                    put("subsubdir6", new HashMap<String, Object>() {{
-                        put("file19.txt", 1200);
-                        put("subsubsubdir4", new HashMap<String, Object>() {{
-                            put("file20.txt", 1300);
-                            put("emptydir6", new HashMap<String, Object>());
-                        }});
-                    }});
-                }});
-            }});
-            put("emptydir7", new HashMap<String, Object>());
-            put("file21.txt", 1400);
-        }});
-    }
-
+public class FileSystemSizeCalculator {
     public static void main(String[] args) {
-        System.out.println(calculateTotalSize("root.dir1.subdir1")); // Expected Output: Total size: 1000
-        System.out.println(calculateTotalSize("root.dir2.subdir4.subsubdir5")); // Expected Output: Total size: 3400
+        // File system structure
+        Map<String, Object> filesystem = new HashMap<>();
+        filesystem.put("root", createFileSystem());
+
+        // Get user input for the directory path
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Enter the path name:");
+        String path = scanner.nextLine();
+
+        // Calculate total size for the specified path
+        int totalSize = getTotalSize(filesystem, path);
+        if (totalSize >= 0) {
+            System.out.println("Total size: " + totalSize);
+        } else {
+            System.out.println("Directory '" + path + "' not found.");
+        }
     }
 
-    public static String calculateTotalSize(String path) {
-        String[] components = path.split("\\.");
-        Object currentDir = filesystem;
+    private static Map<String, Object> createFileSystem() {
+        // Create the nested file system structure
+        Map<String, Object> filesystem = new HashMap<>();
 
-        // Traverse the filesystem to reach the specified directory
-        for (String component : components) {
-            if (currentDir instanceof Map<?, ?> && ((Map<?, ?>) currentDir).containsKey(component)) {
-                currentDir = ((Map<?, ?>) currentDir).get(component);
+        // Create dir1
+        Map<String, Object> dir1 = new HashMap<>();
+        Map<String, Object> subdir1 = new HashMap<>();
+        subdir1.put("file1.txt", 100);
+        subdir1.put("file2.txt", 200);
+        Map<String, Object> subsubdir1 = new HashMap<>();
+        subsubdir1.put("file3.txt", 50);
+        subsubdir1.put("file4.txt", 150);
+        Map<String, Object> subsubsubdir1 = new HashMap<>();
+        subsubsubdir1.put("file5.txt", 500);
+        subsubsubdir1.put("emptydir1", new HashMap<>());
+        subsubdir1.put("subsubsubdir1", subsubsubdir1);
+        subdir1.put("subsubdir1", subsubdir1);
+        dir1.put("subdir1", subdir1);
+        dir1.put("subdir2", createSubdir2());
+        dir1.put("file10.txt", 1000);
+        filesystem.put("dir1", dir1);
+
+        // Create dir2
+        Map<String, Object> dir2 = new HashMap<>();
+        dir2.put("subdir3", createSubdir3());
+        dir2.put("subdir4", createSubdir4());
+        filesystem.put("dir2", dir2);
+
+        // Create dir3
+        Map<String, Object> dir3 = new HashMap<>();
+        dir3.put("file18.txt", 1100);
+        dir3.put("subdir5", createSubdir5());
+        filesystem.put("dir3", dir3);
+
+        filesystem.put("emptydir7", new HashMap<>());
+        filesystem.put("file21.txt", 1400);
+
+        return filesystem;
+    }
+
+    private static Map<String, Object> createSubdir2() {
+        Map<String, Object> subdir2 = new HashMap<>();
+        subdir2.put("file6.txt", 300);
+        Map<String, Object> subsubdir2 = new HashMap<>();
+        subsubdir2.put("file7.txt", 700);
+        Map<String, Object> subsubsubdir2 = new HashMap<>();
+        subsubsubdir2.put("file8.txt", 800);
+        subsubsubdir2.put("file9.txt", 900);
+        subsubdir2.put("subsubsubdir2", subsubsubdir2);
+        subdir2.put("subsubdir2", subsubdir2);
+        subdir2.put("emptydir2", new HashMap<>());
+        return subdir2;
+    }
+
+    private static Map<String, Object> createSubdir3() {
+        Map<String, Object> subdir3 = new HashMap<>();
+        Map<String, Object> subsubdir3 = new HashMap<>();
+        subsubdir3.put("file11.txt", 400);
+        subsubdir3.put("file12.txt", 500);
+        subdir3.put("subsubdir3", subsubdir3);
+        subdir3.put("subsubdir4", new HashMap<>());
+        return subdir3;
+    }
+
+    private static Map<String, Object> createSubdir4() {
+        Map<String, Object> subdir4 = new HashMap<>();
+        subdir4.put("file13.txt", 600);
+        Map<String, Object> subsubdir5 = new HashMap<>();
+        subsubdir5.put("file14.txt", 700);
+        subsubdir5.put("file15.txt", 800);
+        Map<String, Object> subsubsubdir3 = new HashMap<>();
+        subsubsubdir3.put("emptydir4", new HashMap<>());
+        subsubsubdir3.put("file16.txt", 900);
+        subsubsubdir3.put("file17.txt", 1000);
+        subsubdir5.put("subsubsubdir3", subsubsubdir3);
+        subdir4.put("subsubdir5", subsubdir5);
+        return subdir4;
+    }
+
+    private static Map<String, Object> createSubdir5() {
+        Map<String, Object> subdir5 = new HashMap<>();
+        Map<String, Object> subsubdir6 = new HashMap<>();
+        subsubdir6.put("file19.txt", 1200);
+        Map<String, Object> subsubsubdir4 = new HashMap<>();
+        subsubsubdir4.put("file20.txt", 1300);
+        subsubsubdir4.put("emptydir6", new HashMap<>());
+        subsubdir6.put("subsubsubdir4", subsubsubdir4);
+        subdir5.put("subsubdir6", subsubdir6);
+        return subdir5;
+    }
+
+    private static int getTotalSize(Map<String, Object> filesystem, String path) {
+        // Split the path into components
+        String[] parts = path.split("\\.");
+
+        Object currentDir = filesystem.get(parts[0]);
+
+        // Traverse the file system according to the given path
+        for (int i = 1; i < parts.length; i++) {
+            if (currentDir instanceof Map<?, ?>) {
+                currentDir = ((Map<?, ?>) currentDir).get(parts[i]);
             } else {
-                return "Directory '" + path + "' not found.";
+                return -1; // Path not found
             }
         }
 
-        // Calculate total size of files in the specified directory
-        int totalSize = getTotalSize(currentDir);
-        return "Total size: " + totalSize;
+        // Calculate the total size in the specified directory
+        return calculateSize(currentDir);
     }
 
-    private static int getTotalSize(Object directory) {
-        if (!(directory instanceof Map<?, ?>)) {
-            return 0;
-        }
-
-        int totalSize = 0;
-        for (Map.Entry<?, ?> entry : ((Map<?, ?>) directory).entrySet()) {
-            if (entry.getValue() instanceof Integer) { // It's a file
-                totalSize += (Integer) entry.getValue();
-            } else { // It's a directory
-                totalSize += getTotalSize(entry.getValue());
+    private static int calculateSize(Object directory) {
+        if (directory instanceof Map<?, ?>) {
+            int totalSize = 0;
+            for (Map.Entry<?, ?> entry : ((Map<?, ?>) directory).entrySet()) {
+                if (entry.getValue() instanceof Integer) {
+                    // It's a file, add its size
+                    totalSize += (Integer) entry.getValue();
+                } else {
+                    // It's a subdirectory, recurse into it
+                    totalSize += calculateSize(entry.getValue());
+                }
             }
+            return totalSize;
         }
-        return totalSize;
+        return 0; // In case of an empty directory
     }
 }
+
+
